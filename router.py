@@ -1,43 +1,57 @@
 import socket
-import time
 
 
 class Router:
 
-    def __init__(self,
-                ip = "10.0.0.1",
-                mac = "AA:AA:AA:AA:11:AA",
+    def __init__(
+                self,
+                ip="10.0.0.1",
+                mac="AA:AA:AA:AA:11:AA",
+                port=9050
                 ):
         
         self.ip = ip
         self.mac = mac
+
+        self.port = port
+
+        self.interface = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         
         self.clients = {}
-        self.interfaces = {}
 
-    def add_client(self, client_ip, client_mac, client_port, is_local = True):
-        self.clients[client_mac] = [client_ip, client_port]
-        self.add_interface(client_port, client_ip, is_local)
+    def add_client(self, client_ip, client_mac):
+        self.clients[client_mac] = {"ip": client_ip, "socket": None}
+        # self.clients[client_mac]["ip"] = client_ip
 
-    def add_interface(self, client_port, client_ip, is_local = True):
-        interface = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        if is_local:
-            interface.bind(("localhost", client_port))
-        else:
-            interface.bind((client_ip, client_port))
-        self.interfaces[client_port] = interface
-
-    def listen_interface(self, interface_port = "all"):
-        if interface_port == "all":
-            for interface in self.interfaces:
-                self.interfaces[interface].listen(1)
-        else:
-            self.interfaces[interface_port].listen(1)
+    def listen_interfaces(self, max_con=10, is_local=True):
+        self.interface.bind(("", self.port))
+        self.interface.listen(max_con)
 
     def accept_client(self):
         for mac in self.clients:
-            client, address = self.interfaces[self.clients[mac][1]].accept()
-            print(f"client = {client}, address = {address}")
+            client, address = self.interface.accept()
+            self.clients[mac]["socket"] = client
+            print(f"Accepted client, address = {address}")
+
+    def send_message(self, mac, message):
+        self.clients[mac]["socket"].send(bytes(message, "utf-8"))
+
+    def receive_message(self, soc):
+        received_message = soc.recv(1024)
+        received_message = received_message.decode("utf-8")
+        return received_message
+
+    def start(self):
+        print(f"{self.ip} have started")
+        while True:
+            for mac in self.clients:
+                message = self.receive_message(self.clients[mac]["socket"])
+                if not message:
+                    break
+                print(f"'{message}' from {mac}")
+
+    def __del__(self):
+        self.interface.close()
 
 
 if __name__ == "__main__":

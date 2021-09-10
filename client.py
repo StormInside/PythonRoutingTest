@@ -1,13 +1,15 @@
 import socket
-from ipaddress import ip_address
+# from ipaddress import ip_address
+
 
 class Client:
 
-    def __init__(self,
-                ip = "10.0.0.2",
-                mac = "AA:AA:AA:AA:11:BB",
-                gateway = "10.0.0.1",
-                port = 9050
+    def __init__(
+                self,
+                ip="10.0.0.2",
+                mac="AA:AA:AA:AA:11:BB",
+                gateway="10.0.0.1",
+                port=9050
                 ):
 
         # self.set_ip(ip)
@@ -23,7 +25,7 @@ class Client:
     # def set_ip(self, ip):
     #     self.ip = ip_address(ip)
 
-    def connect_to_router(self, is_local = True):
+    def connect_to_router(self, is_local=True):
         try:
             if is_local:
                 self.socket.connect(("localhost", self.port))
@@ -32,14 +34,25 @@ class Client:
         except OSError as ex:
             print(ex)
 
-    def wait_for_res(self):
+    def send_message(self, message):
+        self.socket.send(bytes(message, "utf-8"))
+
+    def receive_message(self):
+        received_message = self.socket.recv(1024)
+        received_message = received_message.decode("utf-8")
+        return received_message
+
+    def start(self):
+        print(f"{self.ip} have started")
         while True:
-            received_message = self.socket.recv(1024)
-            received_message = received_message.decode("utf-8")
-            print(received_message)
+            try:
+                message = self.receive_message()
+                print(f"{self.mac} received '{message}'")
+            except OSError as ex:
+                pass
 
 
 if __name__ == "__main__":
     client = Client()
     client.connect_to_router()
-    client.wait_for_res()
+
