@@ -1,5 +1,6 @@
 import socket
 # from ipaddress import ip_address
+import json
 
 
 class Client:
@@ -34,12 +35,14 @@ class Client:
         except OSError as ex:
             print(ex)
 
-    def send_message(self, message):
-        self.socket.send(bytes(message, "utf-8"))
+    def send_message(self, ip, message):
+        packet = json.dumps({"src_ip": self.ip, "dst_ip": ip, "data": message})
+        self.socket.send(bytes(packet, "utf-8"))
 
     def receive_message(self):
         received_message = self.socket.recv(1024)
         received_message = received_message.decode("utf-8")
+        received_message = json.loads(received_message)
         return received_message
 
     def start(self):
@@ -47,7 +50,7 @@ class Client:
         while True:
             try:
                 message = self.receive_message()
-                print(f"{self.mac} received '{message}'")
+                print(f"to {self.ip} message '{message['data']}' from {message['src_ip']}")
             except OSError as ex:
                 pass
 

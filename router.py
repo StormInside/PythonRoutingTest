@@ -1,4 +1,6 @@
 import socket
+import json
+import threading
 
 
 class Router:
@@ -18,10 +20,10 @@ class Router:
         self.interface = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         
         self.clients = {}
+        self.listeners = []
 
     def add_client(self, client_ip, client_mac):
         self.clients[client_mac] = {"ip": client_ip, "socket": None}
-        # self.clients[client_mac]["ip"] = client_ip
 
     def listen_interfaces(self, max_con=10, is_local=True):
         self.interface.bind(("", self.port))
@@ -33,22 +35,42 @@ class Router:
             self.clients[mac]["socket"] = client
             print(f"Accepted client, address = {address}")
 
-    def send_message(self, mac, message):
-        self.clients[mac]["socket"].send(bytes(message, "utf-8"))
+    def send_message(self, mac, src_ip, message):
+        packet = json.dumps({"src_ip": src_ip, "data": message})
+        self.clients[mac]["socket"].send(bytes(packet, "utf-8"))
+
+    def wait_message(self, mac):
+        while True:
+            message = self.receive_message(self.clients[mac]["socket"])
+            if message:
+                # print(f"to {self.ip} message '{message['data']}' from {message['src_ip']}")
+                self.parse_message(message)
+
+    def parse_message(self, message):
+        if message["dst_ip"] != self.ip:
+            self.find_path(message)
+        else:
+            print(f"to {self.ip} message '{message['data']}' from {message['src_ip']}")
+
+    def find_path(self, message):
+        arp = {}
+        for mac in self.clients:
+            arp[self.clients[mac]["ip"]] = mac
+        if message["dst_ip"] in arp:
+            self.send_message(arp[message["dst_ip"]], message["src_ip"], message["data"])
 
     def receive_message(self, soc):
         received_message = soc.recv(1024)
         received_message = received_message.decode("utf-8")
+        received_message = json.loads(received_message)
         return received_message
 
     def start(self):
         print(f"{self.ip} have started")
-        while True:
-            for mac in self.clients:
-                message = self.receive_message(self.clients[mac]["socket"])
-                if not message:
-                    break
-                print(f"'{message}' from {mac}")
+        for mac in self.clients:
+            thread = threading.Thread(target=self.wait_message, args=(mac,))
+            thread.start()
+            self.listeners.append(thread)
 
     def __del__(self):
         self.interface.close()

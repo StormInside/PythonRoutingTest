@@ -101,25 +101,9 @@ if __name__ == "__main__":
 
     print()
 
-    for client in sim.clients:
-        sim.clients[client].send_message("Hello Router")
-
-    print()
-    time.sleep(1)
-
-    for mac in sim.routers["router1"].clients:
-        sim.routers["router1"].send_message(mac, "Hello Client")
-
-    print()
-    time.sleep(10)
-
-    for client in sim.clients:
-        sim.clients[client].send_message("World Router")
-
-    print()
-    time.sleep(1)
-
-    for mac in sim.routers["router1"].clients:
-        sim.routers["router1"].send_message(mac, "World Client")
+    sim.clients["client3"].send_message("10.0.0.1", "Hello Router")
+    sim.clients["client1"].send_message("10.0.0.1", "Hello Router")
+    sim.clients["client13"].send_message("10.0.0.1", "Hello Router")
+    sim.clients["client2"].send_message("10.0.0.103", "Hello Another Client")
 
 
