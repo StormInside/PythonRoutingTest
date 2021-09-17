@@ -10,12 +10,12 @@ class Simulation:
     def __init__(self):
         self.routers = {}
 
-    def add_router(self, router_name, router_ip, port):
-        self.routers[router_name] = Router(ip=router_ip, port=port)
+    def add_router(self, router_name, router_ip, client_port, broadcast_port):
+        self.routers[router_name] = Router(ip=router_ip, client_port=client_port, broadcast_port=broadcast_port)
 
     def create_clients(self):
         for router in self.routers:
-            self.routers[router].listen_client()
+            self.routers[router].wait_client()
 
     def connect_clients(self):
         for router in self.routers:
@@ -30,26 +30,26 @@ class Simulation:
         for router in self.routers:
             self.routers[router].client.start()
 
-    def print_data(self):
-
-        router_data = {"Name": [], "Ip": [], "Port": []}
-        for router in self.routers:
-            router_data["Name"].append(router)
-            router_data["Ip"].append(self.routers[router].ip)
-            router_data["Port"].append(self.routers[router].port)
-
-        print("Routers")
-        print(tabulate(router_data, headers="keys", tablefmt="grid", stralign='center'))
-        print("")
+    # def print_data(self):
+    #
+    #     router_data = {"Name": [], "Ip": [], "Port": []}
+    #     for router in self.routers:
+    #         router_data["Name"].append(router)
+    #         router_data["Ip"].append(self.routers[router].ip)
+    #         router_data["Port"].append(self.routers[router].port)
+    #
+    #     print("Routers")
+    #     print(tabulate(router_data, headers="keys", tablefmt="grid", stralign='center'))
+    #     print("")
 
 
 if __name__ == "__main__":
     sim = Simulation()
 
-    sim.add_router("router1", "10.0.1.1", 9051)
-    sim.add_router("router2", "10.0.2.1", 9052)
+    sim.add_router("router1", "10.0.1.1", 9051, 9060)
+    sim.add_router("router2", "10.0.2.1", 9052, 9060)
 
-    sim.print_data()
+    # sim.print_data()
 
     router_accept = threading.Thread(target=sim.create_clients)
     router_accept.start()
@@ -64,34 +64,23 @@ if __name__ == "__main__":
         tread.start()
         working_clients[router] = tread
 
-    print()
 
     working_routers = {}
     for router in sim.routers:
-        tread = threading.Thread(target=sim.routers[router].start)
-        tread.start()
-        working_routers[router] = tread
+        sim.routers[router].start()
+        # tread = threading.Thread(target=sim.routers[router].start)
+        # tread.start()
+        # working_routers[router] = tread
 
-    print()
 
-    for router in sim.routers:
-        sim.routers[router].client.send_message("Hello Router")
+    # for router in sim.routers:
+    #     sim.routers[router].client.send_message("Hello Router")
 
-    print()
     time.sleep(1)
 
-    sim.routers["router1"].message_to_client("Hello Client")
+    # sim.routers["router1"].message_to_client("Hello Client")
+    sim.routers["router1"].message_to_broadcast("Hello, can you hear?")
+    sim.routers["router2"].message_to_broadcast("Hello, I can hear")
 
-    print()
-    time.sleep(10)
-
-    for router in sim.routers:
-        sim.routers[router].client.send_message("Hello Router")
-
-    print()
-    time.sleep(1)
-
-    sim.routers["router1"].message_to_client("World Client")
-    sim.routers["router2"].message_to_client("World Client")
 
 
