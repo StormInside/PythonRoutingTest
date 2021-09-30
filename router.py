@@ -1,8 +1,7 @@
 import socket
 from ipaddress import ip_address
 import threading
-
-from client import Client
+import json
 
 
 class Router:
@@ -10,62 +9,102 @@ class Router:
     def __init__(
                 self,
                 ip="10.0.0.1",
-                client_port=9050,
-                broadcast_port=9060
+                broadcast_port=9060,
+                unused_interfaces=[9101,9102,9103,9104],
+                routing_protocol=None
                 ):
         
         self.ip = ip_address(ip)
-        self.client_port = client_port
         self.broadcast_port = broadcast_port
-
-        self.client_interface = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client_interface.bind(('localhost', self.client_port))
-        
-        self.client = Client(self.ip+1, self.client_port)
 
         self.broadcast_interface = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.broadcast_interface.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.broadcast_interface.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.broadcast_interface.bind(('localhost', self.broadcast_port))
 
-        self.connections = {}
+        self.unused_interfaces = unused_interfaces
 
+        self.data_packet = {"src_ip": "ip", "dst_ip": "ip", "data": "message"}
+        self.broadcast_packet = {"src_ip": str(self.ip), "data": "message"}
+
+        self.connections = {}
         self.threads = {}
 
-    def wait_client(self, max_con=1):
-        self.client_interface.listen(max_con)
+        self.routing_protocol = routing_protocol
+        self.routing_table = {}
 
-    def accept_client(self):
-        client_conn, address = self.client_interface.accept()
-        self.client_conn = client_conn
-        print(f"Accepted client, address = {address}")
+    def connect_to_router(self, ip):
+        port = self.unused_interfaces[0]
+        if not port:
+            return 0
+        self.unused_interfaces.pop(0)
 
-    def message_to_client(self, message):
-        self.client_conn.send(bytes(message, "utf-8"))
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(('localhost', port))
+        sock.listen(1)
+
+        self.connections[port] = {"remote_ip": ip, "remote_port": port, "connection": sock}
+
+        waiter = threading.Thread(target=self.wait_connection, args=(port,))
+        waiter.start()
+        self.threads[f"{port}_waiter"] = waiter
+
+    def wait_connection(self, port):
+        connection = self.connections[port]
+        sock = connection["connection"]
+        conn, addr = sock.accept()
+        print(f"Router {self.ip} CONNECTED to {connection['remote_ip']}")
+        self.connections[port]["connection"] = conn
+        listener = threading.Thread(target=self.listen_conn, args=(port,))
+        listener.start()
+        self.threads[f"{port}_listener"] = listener
+
+    def accept_connection(self, port, ip):
+        connection_port = self.unused_interfaces[0]
+        self.unused_interfaces.pop(0)
+        connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        connection.connect(('localhost', port))
+        self.connections[connection_port] = {"remote_ip": ip, "remote_port": port, "connection": connection}
+        listener = threading.Thread(target=self.listen_conn, args=(connection_port,))
+        listener.start()
+        self.threads[f"{connection_port}_listener"] = listener
+
+    def message_to_connection(self, message, local_port):
+        connection = self.connections[local_port]
+        conn = connection["connection"]
+        packet = self.data_packet
+        packet["data"] = message
+        packet["src_ip"] = str(self.ip)
+        packet["dst_ip"] = str(connection["remote_ip"])
+        packet = json.dumps(packet)
+        conn.send(bytes(packet, "utf-8"))
+
+
 
     def message_to_broadcast(self, message):
-        self.broadcast_interface.sendto(bytes(message, "utf-8"), ('<broadcast>', self.broadcast_port))
+        packet = self.broadcast_packet
+        packet["data"] = message
+        packet = json.dumps(packet)
+        self.broadcast_interface.sendto(bytes(packet, "utf-8"), ('<broadcast>', self.broadcast_port))
 
-    def listen_client(self):
-        def listener():
-            while True:
-                message = self.client_conn.recv(1024)
-                message = message.decode("utf-8")
-                if not message:
-                    break
+    def listen_conn(self, port):
+        connection = self.connections[port]["connection"]
+        while True:
+            message = connection.recv(1024)
+            message = message.decode("utf-8")
+            if not message:
+                break
 
-                print(f"Router {self.ip} gets '{message}' from {self.client.ip}")
-
-        client_listener = threading.Thread(target=listener)
-        client_listener.start()
-        self.threads["client_listener"] = client_listener
+            print(f"Router {self.ip} gets '{message}'")
 
     def listen_broadcast(self):
         def listener():
             while True:
                 data, addr = self.broadcast_interface.recvfrom(1024)
                 data = data.decode("utf-8")
-                self.parse_broadcast_data(data, addr)
+                data = json.loads(data)
+                if data["src_ip"] != str(self.ip):
+                    self.parse_broadcast_data(data, addr)
 
         broadcast_listener = threading.Thread(target=listener)
         broadcast_listener.start()
@@ -75,9 +114,5 @@ class Router:
         print(f"Router {self.ip} received '{data}' from broadcast {addr}")
 
     def start(self):
-        self.listen_client()
         self.listen_broadcast()
         print(f"Router {self.ip} have started")
-
-    def __del__(self):
-        self.client_interface.close()

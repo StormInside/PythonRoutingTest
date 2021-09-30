@@ -10,75 +10,42 @@ class Simulation:
     def __init__(self):
         self.routers = {}
 
-    def add_router(self, router_name, router_ip, client_port, broadcast_port):
-        self.routers[router_name] = Router(ip=router_ip, client_port=client_port, broadcast_port=broadcast_port)
-
-    def create_clients(self):
-        for router in self.routers:
-            self.routers[router].wait_client()
-
-    def connect_clients(self):
-        for router in self.routers:
-            self.routers[router].client.connect()
-            self.routers[router].accept_client()
+    def add_router(self, router_name, router_ip, broadcast_port, unused_interfaces):
+        self.routers[router_name] = Router(router_ip, broadcast_port, unused_interfaces)
 
     def start_routers(self):
         for router in self.routers:
             self.routers[router].start()
 
-    def start_clients(self):
-        for router in self.routers:
-            self.routers[router].client.start()
-
-    # def print_data(self):
-    #
-    #     router_data = {"Name": [], "Ip": [], "Port": []}
-    #     for router in self.routers:
-    #         router_data["Name"].append(router)
-    #         router_data["Ip"].append(self.routers[router].ip)
-    #         router_data["Port"].append(self.routers[router].port)
-    #
-    #     print("Routers")
-    #     print(tabulate(router_data, headers="keys", tablefmt="grid", stralign='center'))
-    #     print("")
-
 
 if __name__ == "__main__":
     sim = Simulation()
 
-    sim.add_router("router1", "10.0.1.1", 9051, 9060)
-    sim.add_router("router2", "10.0.2.1", 9052, 9060)
-
-    # sim.print_data()
-
-    router_accept = threading.Thread(target=sim.create_clients)
-    router_accept.start()
-    client_connect = threading.Thread(target=sim.connect_clients)
-    client_connect.start()
+    sim.add_router("router1", "10.0.1.1", 9060, [9101, 9102, 9103, 9104])
+    sim.add_router("router2", "10.0.2.1", 9060, [9201, 9202, 9203, 9204])
+    sim.add_router("router3", "10.0.3.1", 9060, [9301, 9302, 9303, 9304])
 
     time.sleep(1)
-
-    working_clients = {}
-    for router in sim.routers:
-        tread = threading.Thread(target=sim.routers[router].client.start)
-        tread.start()
-        working_clients[router] = tread
-
 
     working_routers = {}
     for router in sim.routers:
         sim.routers[router].start()
-        # tread = threading.Thread(target=sim.routers[router].start)
-        # tread.start()
-        # working_routers[router] = tread
-
-
-    # for router in sim.routers:
-    #     sim.routers[router].client.send_message("Hello Router")
 
     time.sleep(1)
 
-    # sim.routers["router1"].message_to_client("Hello Client")
+    sim.routers["router1"].connect_to_router("10.0.2.1")
+    sim.routers["router2"].accept_connection(9101, "10.0.1.1")
+    sim.routers["router2"].connect_to_router("10.0.3.1")
+    sim.routers["router3"].accept_connection(9202, "10.0.2.1")
+
+    sim.routers["router2"].message_to_connection("HELLO", 9201)
+    time.sleep(1)
+    sim.routers["router1"].message_to_connection("REPLY", 9101)
+    time.sleep(1)
+    sim.routers["router2"].message_to_connection("HELLO", 9202)
+    time.sleep(1)
+    sim.routers["router3"].message_to_connection("REPLY", 9301)
+
     sim.routers["router1"].message_to_broadcast("Hello, can you hear?")
     sim.routers["router2"].message_to_broadcast("Hello, I can hear")
 
