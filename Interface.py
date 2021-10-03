@@ -39,6 +39,7 @@ class Interface:
         print(f"Router {self.hostname} CONNECTED to {connection['remote_ip']}")
         self.connection["connection"] = conn
         # print(conn) #
+        self.status = "Connected"
         listener = threading.Thread(target=self.listen_conn)
         listener.start()
         self.listener = listener
@@ -48,6 +49,7 @@ class Interface:
         connection.connect(('localhost', r_port))
         self.connection = {"remote_ip": ip, "remote_port": r_port, "connection": connection}
         # print(connection) #
+        self.status = "Connected"
         listener = threading.Thread(target=self.listen_conn)
         listener.start()
         self.listener = listener

@@ -21,7 +21,7 @@ class Router:
         self.__create_broadcast()
 
         self.data_packet = {"src_ip": "ip", "dst_ip": "ip", "data": "message"}
-        self.broadcast_packet = {"src_ip": "ip", "data": "message"}
+        self.broadcast_packet = {"src_ip": "ip", "src_port": "port", "data": "message"}
 
         self.threads = {}
 
@@ -52,6 +52,7 @@ class Router:
             port = interface.broadcast_port
             packet = self.broadcast_packet
             packet["src_ip"] = interface.get_ip()
+            packet["src_port"] = interface.local_port
             packet["data"] = message
             packet = json.dumps(packet)
             sock.sendto(bytes(packet, "utf-8"), ('<broadcast>', port))
@@ -63,21 +64,28 @@ class Router:
                 send_data(interface)
 
     def listen_broadcast(self):
-        def listener(sock):
+        def listener(sock, interface):
             while True:
                 data, addr = sock.recvfrom(1024)
                 data = data.decode("utf-8")
                 data = json.loads(data)
                 if data["src_ip"] not in self.ip_list:
-                    self.parse_broadcast_data(data, addr)
+                    self.parse_broadcast_data(data, interface)
 
         for interface in self.interfaces:
-            broadcast_listener = threading.Thread(target=listener, args=(interface.broadcast_socket, ))
+            broadcast_listener = threading.Thread(target=listener, args=(interface.broadcast_socket, interface))
             broadcast_listener.start()
             self.threads[f"broadcast_listener{interface}"] = broadcast_listener
 
-    def parse_broadcast_data(self, data, addr):
-        print(f"Router {self.hostname} received '{data}' from broadcast {addr}")
+    def parse_broadcast_data(self, data, interface):
+        if data["data"] == "Hello, lets connect":
+            if interface.status != "Connected":
+                interface.connect_to_router(data["src_ip"])
+                self.message_to_broadcast("Ok, Im ready", interface.number)
+        if data["data"] == "Ok, Im ready":
+            if interface.status != "Connected":
+                interface.accept_connection(data["src_port"], data["src_ip"])
+        # print(f"Router {self.hostname} received '{data}' from broadcast")
 
     def start(self):
         self.listen_broadcast()
