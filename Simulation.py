@@ -33,8 +33,6 @@ class Simulation:
         return tabulate(data, headers='keys', tablefmt='grid')
 
 
-
-
 if __name__ == "__main__":
     sim = Simulation()
 
@@ -45,13 +43,19 @@ if __name__ == "__main__":
                      ]
 
     r2_interfaces = [Interface(0, 9201, 9910, IPv4Interface('10.2.1.1/24')),
-                     Interface(1, 9202, 9930, IPv4Interface('10.2.2.1/24')),
+                     # Interface(1, 9202, 9930, IPv4Interface('10.2.2.1/24')),
                      # Interface(2, 9203, 9990, IPv4Interface('10.2.3.1/24')),
                      # Interface(3, 9204, 9990, IPv4Interface('10.2.4.1/24'))
                      ]
 
-    r3_interfaces = [Interface(0, 9101, 9920, IPv4Interface('10.3.1.1/24')),
+    r3_interfaces = [Interface(0, 9301, 9920, IPv4Interface('10.3.1.1/24')),
                      Interface(1, 9302, 9930, IPv4Interface('10.3.2.1/24')),
+                     # Interface(2, 9303, 9990, IPv4Interface('10.3.3.1/24')),
+                     # Interface(3, 9304, 9990, IPv4Interface('10.3.4.1/24'))
+                     ]
+
+    r4_interfaces = [Interface(0, 9401, 9930, IPv4Interface('10.4.1.1/24')),
+                     # Interface(1, 9302, 9930, IPv4Interface('10.3.2.1/24')),
                      # Interface(2, 9303, 9990, IPv4Interface('10.3.3.1/24')),
                      # Interface(3, 9304, 9990, IPv4Interface('10.3.4.1/24'))
                      ]
@@ -59,6 +63,7 @@ if __name__ == "__main__":
     sim.add_router("router1", r1_interfaces)
     sim.add_router("router2", r2_interfaces)
     sim.add_router("router3", r3_interfaces)
+    sim.add_router("router4", r4_interfaces)
 
     time.sleep(1)
 
@@ -77,7 +82,11 @@ if __name__ == "__main__":
     print(sim)
 
     # time.sleep(1)
-    # sim.routers["router3"].message_to_interface("HELLO", 1)
+    sim.routers["router2"].set_default_route("10.1.1.1", 0)
+    sim.routers["router1"].add_route("10.4.0.0", "255.255.0.0", "10.3.1.1", 1, 10)
+    sim.routers["router3"].set_default_route("10.1.1.1", 0)
+    sim.routers["router3"].add_route("10.4.0.0", "255.255.0.0", "10.4.1.1", 1, 10)
+    sim.routers["router2"].message_to_ip("HELLO", "10.4.1.1")
 
     # print(sim)
 

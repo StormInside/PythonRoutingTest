@@ -12,13 +12,14 @@ class Interface:
         self.status = "Unused"
 
         self.hostname = None
+        self.routing_function = None
         self.broadcast_socket = None
         self.listener = None
 
         self.connection = {}
 
     def get_ip(self):
-        return str(self.interface.ip)
+        return self.interface.ip
 
     def get_conn(self):
         return self.connection
@@ -62,6 +63,6 @@ class Interface:
             if not message:
                 break
 
-            print(f"Router {self.hostname} gets '{message}'")
+            self.routing_function(message)
 
 
