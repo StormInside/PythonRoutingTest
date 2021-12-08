@@ -3,6 +3,9 @@ from ipaddress import ip_address, ip_network
 import threading
 import json
 
+from Protocols.RoutingProtocol import RoutingProtocol
+from Protocols.RIP import RIP
+
 
 class Router:
 
@@ -28,6 +31,8 @@ class Router:
 
         # self.routing_table = {"network": {"gateway": "0.0.0.0", "interface": 0, "metric": 20}}
         self.routing_table = {}
+
+        self.dynamic_protocol = RIP(router=self)
 
     def __create_broadcast(self):
         for interface in self.interfaces:
@@ -84,6 +89,13 @@ class Router:
             route = possible_routes[min(possible_routes)]
             return route
         return None
+
+    def set_protocol(self, protocol):
+        if not isinstance(protocol, RoutingProtocol):
+            print("You must inherit 'RoutingProtocol' class")
+            return 0
+
+        print(f"{self.hostname} now has {protocol.name}")
 
     def has_ip(self, message_ip):
         for interface in self.interfaces:
@@ -145,4 +157,5 @@ class Router:
 
     def start(self):
         self.__listen_broadcast()
+        self.dynamic_protocol.start()
         print(f"Router {self.hostname} have started")

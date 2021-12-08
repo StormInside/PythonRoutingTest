@@ -83,11 +83,10 @@ if __name__ == "__main__":
 
     # time.sleep(1)
     sim.routers["router2"].set_default_route("10.1.1.1", 0)
-    sim.routers["router1"].add_route("10.4.0.0", "255.255.0.0", "10.3.1.1", 1, 10)
     sim.routers["router3"].set_default_route("10.1.1.1", 0)
-    sim.routers["router3"].add_route("10.4.0.0", "255.255.0.0", "10.4.1.1", 1, 10)
     sim.routers["router2"].message_to_ip("HELLO", "10.4.1.1")
-
+    sim.routers["router2"].dynamic_protocol.find_route()
+    print(sim.routers["router2"].routing_table)
     # print(sim)
 
 
