@@ -21,6 +21,9 @@ class Interface:
     def get_ip(self):
         return self.interface.ip
 
+    def get_ip_str(self):
+        return str(self.interface.ip)
+
     def get_conn(self):
         return self.connection
 
@@ -63,6 +66,6 @@ class Interface:
             if not message:
                 break
 
-            self.routing_function(message)
+            self.routing_function(message, self)
 
 

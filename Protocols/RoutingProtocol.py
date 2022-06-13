@@ -7,9 +7,10 @@ class RoutingProtocol:
         self.name = name
 
     @abstractmethod
-    def add_route(self):
+    def start(self):
         pass
 
-
-
+    @abstractmethod
+    def new_message(self, message, interface):
+        pass
 

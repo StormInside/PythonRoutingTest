@@ -1,4 +1,5 @@
 import socket
+import time
 from ipaddress import ip_address, ip_network
 import threading
 import json
@@ -67,12 +68,16 @@ class Router:
                 interface.accept_connection(data["src_port"], data["src_ip"])
         # print(f"Router {self.hostname} received '{data}' from broadcast")
 
-    def __parse_interface_data(self, message):
-        print(self.hostname, message)
+    def __parse_interface_data(self, message, interface_from):
+        # print(self.hostname, message)
         message_un = json.loads(message)
+        if 'type' in message_un['data'] and message_un['data']['type'] == self.dynamic_protocol.name:
+            self.dynamic_protocol.new_message(message_un['data'], interface_from)
+
         message_ip = ip_address(message_un["dst_ip"])
         if self.has_ip(message_ip):
             print(f"Router {self.hostname} gets '{message_un['data']}' from {message_un['src_ip']}")
+            pass
         else:
             interface_number = self.__find_route(message_ip)
             if interface_number:
@@ -83,7 +88,7 @@ class Router:
     def __find_route(self, ip):
         possible_routes = {}
         for route in self.routing_table:
-            if ip_address(ip) in route:
+            if ip_address(ip) in ip_network(route):
                 possible_routes[self.routing_table[route]['metric']] = (self.routing_table[route]['interface'])
         if possible_routes:
             route = possible_routes[min(possible_routes)]
@@ -126,7 +131,10 @@ class Router:
                 return 0
 
         interface_number = self.__find_route(ip)
-        self.message_to_interface(message, interface_number, str(self.interfaces[interface_number].get_ip()), ip)
+        self.message_to_interface(message,
+                                  interface_number,
+                                  str(self.interfaces[interface_number].get_ip()),
+                                  ip)
 
     def message_to_broadcast(self, message, interface="All"):
         def send_data(interface):
@@ -146,14 +154,14 @@ class Router:
                 send_data(interface)
 
     def set_default_route(self, gateway, interface, metric=20):
-        network = ip_network('0.0.0.0/0.0.0.0')
-        self.routing_table[network] = {"gateway": gateway, "interface": interface, "metric": metric}
+        self.routing_table['0.0.0.0/0'] = {"gateway": gateway,
+                                           "interface": interface,
+                                           "metric": metric}
 
     def add_route(self, network, netmask, gateway, interface, metric):
-        network = ip_network(f'{network}/{netmask}')
-        self.routing_table[network] = {"gateway": gateway,
-                                       "interface": interface,
-                                       "metric": metric}
+        self.routing_table[f'{network}/{netmask}'] = {"gateway": gateway,
+                                                       "interface": interface,
+                                                       "metric": metric}
 
     def start(self):
         self.__listen_broadcast()
